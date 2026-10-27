@@ -68,7 +68,7 @@
 
 <script>
   // ▼ Apps ScriptのウェブアプリのURL（…/exec で終わるもの）に書き換える
-  var API_URL = 'https://script.google.com/macros/s/AKfycbwrzzhQUdEe8OCHN61397khwvlNxB9l8fFTyV-fbFGV6S2JWdX-koAhw9agwYUNjBO3DQ/exec';
+  var API_URL = 'ここにウェブアプリのURLを貼る';
 
   // 確認結果をここに集めて、最後にまとめてサーバーへ送る
   var result = {
@@ -89,6 +89,7 @@
   var recText = document.getElementById('recText');
   var recStatus = document.getElementById('recStatus');
   var listening = false;
+  var lastTranscript = '';   // 途中経過も含めた、最後に聞き取れた文
   var recognizer = null;
 
   if (Recognition) {
@@ -115,11 +116,14 @@
       micBtn.classList.add('listening');
       micBtn.textContent = '● 聞き取り中（押すと止まる）';
       recStatus.textContent = '';
+      lastTranscript = '';
+      result.recognizedText = '';
     };
     recognizer.onresult = function (e) {
       var text = '';
       for (var i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
       recText.textContent = text;
+      lastTranscript = text;
       if (e.results[e.results.length - 1].isFinal) {
         result.recognizedText = text;
         result.recognitionError = '';
@@ -136,7 +140,16 @@
       listening = false;
       micBtn.classList.remove('listening');
       micBtn.textContent = '🎤 押して話す';
-      if (result.recognizedText) recStatus.innerHTML = '<span class="ok">認識できました。</span>';
+      // iPhoneのSafariでは「確定」の合図が来ないまま終わることがあるため、途中経過の文を結果として使う
+      if (!result.recognizedText && lastTranscript) {
+        result.recognizedText = lastTranscript + '（途中経過）';
+      }
+      if (result.recognizedText) {
+        recStatus.innerHTML = '<span class="ok">認識できました。</span>';
+      } else if (!result.recognitionError) {
+        result.recognitionError = '文字にならずに終了';
+        recStatus.innerHTML = '<span class="ng">文字になりませんでした。もう一度、ボタンを押してすぐに話してください。</span>';
+      }
     };
 
     try {
