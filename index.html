@@ -67,7 +67,7 @@
 </div>
 
 <script>
-  //https://script.google.com/macros/s/AKfycbwrzzhQUdEe8OCHN61397khwvlNxB9l8fFTyV-fbFGV6S2JWdX-koAhw9agwYUNjBO3DQ/exec
+  // ▼ Apps ScriptのウェブアプリのURL（…/exec で終わるもの）に書き換える
   var API_URL = 'https://script.google.com/macros/s/AKfycbwrzzhQUdEe8OCHN61397khwvlNxB9l8fFTyV-fbFGV6S2JWdX-koAhw9agwYUNjBO3DQ/exec';
 
   // 確認結果をここに集めて、最後にまとめてサーバーへ送る
@@ -195,6 +195,12 @@
     result.comment = document.getElementById('comment').value.trim();
     if (!result.name) { status.innerHTML = '<span class="ng">名前を入力してください。</span>'; return; }
 
+    // URLの書き換え忘れ・貼り間違いを先にチェックする
+    if (!/^https:\/\/script\.google\.com\/macros\/s\/[^\s\/]+\/exec$/.test(API_URL)) {
+      status.innerHTML = '<span class="ng">API_URLが正しくありません。…/exec で終わるウェブアプリのURLに書き換えてください（現在: ' + API_URL + '）</span>';
+      return;
+    }
+
     btn.disabled = true;
     status.textContent = '送信中…';
     fetch(API_URL, {
@@ -203,7 +209,16 @@
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'saveResult', data: result })
     })
-      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        // 返ってきた中身を文字として読み、JSONでなければ原因がわかるように先頭を表示する
+        return res.text().then(function (text) {
+          try { return JSON.parse(text); }
+          catch (e) {
+            var head = text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 120);
+            throw new Error('サーバーの返事がJSONではありません（状態 ' + res.status + '）: ' + head);
+          }
+        });
+      })
       .then(function (json) {
         if (!json.ok) throw new Error(json.error || '不明なエラー');
         status.innerHTML = '<span class="ok">' + json.message + '</span>';
